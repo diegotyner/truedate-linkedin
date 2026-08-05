@@ -1,29 +1,30 @@
 # truedate-linkedin
 
-A chrome extension to show original job posting dates
+A chrome extension to show original job posting dates. Also, even if you're not downloading the extension I strongly recommend reading the FYI about Browser Gate, a massive data privacy scandal LinkedIn is involved with and how to protect yourself.
 
-### API
+### Installation
 
-Request made to: `https://www.linkedin.com/voyager/api/jobs/jobPostings/{jobID}`
+1. Copy files in some destination folder. git clone `https://github.com/diegotyner/truedate-linkedin`
+2. In your chromium browser, go to chrome://extensions. Here, select developer mode and then load unpacked, directing to the `./dist/` folder.
 
-- 1 request per job
+### API & Interception Behavior
 
-Date listed at is in unix timestamp. Can be converted here: https://www.unixtimestamp.com/.
+LinkedIn surfaces job posting details via two primary Voyager API endpoints:
 
-- Seconds since Jan 01 1970, UTC
-- 1783546126000 -> Wed Jul 08 2026 21:28:46 GMT+0000
+- `https://www.linkedin.com/voyager/api/jobs/jobPostings/{jobID}`
+- `https://www.linkedin.com/voyager/api/graphql?variables=(jobPostingUrn:urn%3Ali%3Afsd_jobPosting%3A{jobID})&queryId=voyagerJobsDashJobPostings...`
 
-Response is huge, but important attributes:
+#### Data Format
 
-```
-{
-    data: {
-        applies: 0, // appears to be legacy, actual number no longer sent at this route
-        originalListedAt: unixTimestamp,
-        expireAt: unixTimestamp,
-    },
-    included: {} // info about your progress on application (things like resume submission, etc)
-}
+Post dates are returned as Unix millisecond timestamps:
 
+- `originalListedAt`: Milliseconds since Jan 01, 1970 UTC (e.g. `1783546126000` -> `Wed Jul 08 2026 21:28:46 GMT+0000`).
+- `expireAt` _(optional)_: Expiration Unix timestamp in milliseconds.
 
-```
+### FYI - Browser Gate
+
+You should know about LinkedIn's so called "[browser gate](https://browsergate.eu/)". Briefly, they scan visitor's profiles for known chrome extension hashes, and build user profiles without their knowledge. You can see this in your browser console, the hundreds of `chrome-extension://invalid/` errors. This isn't any extension you have loaded, this is LINKEDIN, THE WEBSITE scanning through thousands of possible extensions you could have, and systematically checking each of them. This tells them: your password manager, what LinkedIn automations you have enabled (Simplify), any accessibility needs you might have (colorblindness, eyesight), religious or political filters you might have enabled, and more.
+
+To fix this (as of 8/5/26), you can add this custom filter to Ublock Origin or `brave://settings/shields/filters` custom filters:
+
+- `linkedin.com##+js(no-fetch-if, /chrome-extension:/)`

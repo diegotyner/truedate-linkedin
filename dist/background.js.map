@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/background.ts"],
+  "sourcesContent": ["console.log(\"[TrueDate] Service worker initialized.\");\n"],
+  "mappings": ";;;AAAA,UAAQ,IAAI,wCAAwC;",
+  "names": []
+}

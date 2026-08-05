@@ -17,7 +17,7 @@
     "build:js": "node esbuild.config.js",
     "watch:css": "npx @tailwindcss/cli -i src/globals.css -o dist/globals.css --watch",
     "build:css": "npx @tailwindcss/cli -i src/globals.css -o dist/globals.css --minify",
-    "copy:static": "cp src/manifest.json dist/manifest.json",
+    "copy:static": "cp src/manifest.json dist/manifest.json && cp -r src/icons dist/",
     "dev": "npm-run-all --parallel watch:js watch:css",
     "build": "npm run build:js && npm run build:css && npm run copy:static",
     "typecheck": "tsc --noEmit"

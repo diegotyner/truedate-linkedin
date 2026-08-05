@@ -6,6 +6,7 @@ export interface VoyagerJobPostingResponse {
 }
 
 export interface ParsedJobData {
+  jobId?: string | undefined;
   originalListedAt: number;
   expireAt: number | null;
   daysSinceOriginal: number;
