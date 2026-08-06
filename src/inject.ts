@@ -1,12 +1,22 @@
 import { MESSAGE_SOURCE } from "./types.js";
-import type { VoyagerJobPostingResponse, ParsedJobData, TrueDateMessage } from "./types.js";
+import type {
+  VoyagerJobPostingResponse,
+  ParsedJobData,
+  TrueDateMessage,
+} from "./types.js";
 
 const VOYAGER_JOB_REGEX = /\/voyager\/api\/.*jobPostings/i;
+const injectCache = new Map<string, TrueDateMessage>();
 
-console.log("[TrueDate:inject] Interceptor script loaded and initialized in MAIN world.");
+console.log(
+  "[TrueDate:inject] Interceptor script loaded and initialized in MAIN world.",
+);
 
-function findOriginalListedAt(obj: any, depth = 0): { originalListedAt?: number; expireAt?: number | null } | null {
-  if (!obj || typeof obj !== "object" || depth > 10) return null;
+function findOriginalListedAt(
+  obj: any,
+  depth = 0,
+): { originalListedAt?: number; expireAt?: number | null } | null {
+  if (!obj || typeof obj !== "object" || depth > 30) return null;
 
   if (typeof obj.originalListedAt === "number") {
     return {
@@ -38,7 +48,7 @@ function extractJobId(url: string, json: any): string | undefined {
   }
 
   const findUrn = (obj: any, depth = 0): string | undefined => {
-    if (!obj || typeof obj !== "object" || depth > 10) return undefined;
+    if (!obj || typeof obj !== "object" || depth > 15) return undefined;
 
     for (const key of ["entityUrn", "jobPostingUrn", "urn", "$id"]) {
       if (typeof obj[key] === "string") {
@@ -57,7 +67,21 @@ function extractJobId(url: string, json: any): string | undefined {
     return undefined;
   };
 
-  return findUrn(json);
+  const structural = findUrn(json);
+  if (structural) return structural;
+
+  // Fallback: scan raw JSON text for the URN pattern directly. Handles cases like
+  // GraphQL-normalized hydration payloads where the URN sits under a key name
+  // (e.g. "*jobsDashJobPostingsById") that structural key-matching won't catch.
+  try {
+    const text = JSON.stringify(json);
+    const textMatch = text.match(/fsd_jobPosting:(\d+)/);
+    if (textMatch && textMatch[1]) return textMatch[1];
+  } catch {
+    // Ignore stringify failures
+  }
+
+  return undefined;
 }
 
 function processJsonResponse(url: string, json: unknown): void {
@@ -66,7 +90,11 @@ function processJsonResponse(url: string, json: unknown): void {
   const found = findOriginalListedAt(json);
 
   if (!found || typeof found.originalListedAt !== "number") {
-    console.warn("[TrueDate:inject] Voyager response missing originalListedAt:", url, json);
+    console.warn(
+      "[TrueDate:inject] Voyager response missing originalListedAt:",
+      url,
+      json,
+    );
     return;
   }
 
@@ -89,13 +117,17 @@ function processJsonResponse(url: string, json: unknown): void {
     payload,
   };
 
+  if (jobId) injectCache.set(jobId, message);
+
   console.log("[TrueDate:inject] Posting parsed job data to window:", payload);
   window.postMessage(message, window.location.origin);
 }
 
 // 1. Intercept window.fetch
 const originalFetch = window.fetch;
-window.fetch = async function (...args: Parameters<typeof fetch>): Promise<Response> {
+window.fetch = async function (
+  ...args: Parameters<typeof fetch>
+): Promise<Response> {
   const response = await originalFetch.apply(this || window, args);
 
   try {
@@ -112,14 +144,23 @@ window.fetch = async function (...args: Parameters<typeof fetch>): Promise<Respo
     }
 
     if (VOYAGER_JOB_REGEX.test(url)) {
-      console.log("[TrueDate:inject] Intercepted target Voyager fetch request:", url);
+      console.log(
+        "[TrueDate:inject] Intercepted target Voyager fetch request:",
+        url,
+      );
 
       const clonedResponse = response.clone();
-      clonedResponse.json().then((json: unknown) => {
-        processJsonResponse(url, json);
-      }).catch((err) => {
-        console.warn("[TrueDate:inject] Failed to parse Voyager fetch JSON:", err);
-      });
+      clonedResponse
+        .json()
+        .then((json: unknown) => {
+          processJsonResponse(url, json);
+        })
+        .catch((err) => {
+          console.warn(
+            "[TrueDate:inject] Failed to parse Voyager fetch JSON:",
+            err,
+          );
+        });
     }
   } catch (err) {
     console.warn("[TrueDate:inject] Error in fetch interceptor:", err);
@@ -133,7 +174,11 @@ const XhrProto = XMLHttpRequest.prototype;
 const originalXhrOpen = XhrProto.open;
 const originalXhrSend = XhrProto.send;
 
-(XhrProto as any).open = function (method: string, url: string | URL, ...rest: any[]) {
+(XhrProto as any).open = function (
+  method: string,
+  url: string | URL,
+  ...rest: any[]
+) {
   const urlStr = typeof url === "string" ? url : url.href;
   (this as any)._truedate_url = urlStr;
   return originalXhrOpen.apply(this, [method, url, ...rest] as any);
@@ -144,7 +189,10 @@ const originalXhrSend = XhrProto.send;
     try {
       const url = (this as any)._truedate_url || "";
       if (VOYAGER_JOB_REGEX.test(url)) {
-        console.log("[TrueDate:inject] Intercepted target Voyager XHR request:", url);
+        console.log(
+          "[TrueDate:inject] Intercepted target Voyager XHR request:",
+          url,
+        );
 
         const handleText = (text: string) => {
           try {
@@ -159,7 +207,10 @@ const originalXhrSend = XhrProto.send;
           if (this.responseText) handleText(this.responseText);
         } else if (this.responseType === "json" && this.response) {
           processJsonResponse(url, this.response);
-        } else if (this.responseType === "blob" && this.response instanceof Blob) {
+        } else if (
+          this.responseType === "blob" &&
+          this.response instanceof Blob
+        ) {
           const reader = new FileReader();
           reader.onload = () => {
             if (typeof reader.result === "string") {
@@ -176,6 +227,49 @@ const originalXhrSend = XhrProto.send;
   return originalXhrSend.apply(this, args as any);
 };
 
+// One-time capture of the initial job's data from LinkedIn's embedded hydration state.
+// The first job on a fresh page load is often server-rendered rather than fetched
+// client-side, so it never passes through the fetch/XHR interceptors above.
+function scanEmbeddedHydrationState(): void {
+  const elements = document.querySelectorAll(
+    'code[id^="bpr-guid"], script[type="application/json"]',
+  );
+  console.log(
+    "[TrueDate:inject] Hydration scan found elements:",
+    elements.length,
+  );
+  elements.forEach((el) => {
+    try {
+      const content = el.textContent;
+      if (content && content.includes("originalListedAt")) {
+        console.log(
+          "[TrueDate:inject] Found candidate hydration element, id:",
+          el.id,
+        );
+        const json = JSON.parse(content);
+        processJsonResponse("embedded-hydration", json);
+      }
+    } catch (err) {
+      console.warn("[TrueDate:inject] Hydration scan JSON.parse failed:", err);
+    }
+  });
+}
 
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", scanEmbeddedHydrationState);
+} else {
+  scanEmbeddedHydrationState();
+}
 
-
+window.addEventListener("message", (event: MessageEvent) => {
+  if (event.origin !== window.location.origin) return;
+  if (event.data?.source === "truedate-content-ready") {
+    console.log(
+      "[TrueDate:inject] Replaying cached payloads:",
+      injectCache.size,
+    );
+    injectCache.forEach((msg) =>
+      window.postMessage(msg, window.location.origin),
+    );
+  }
+});

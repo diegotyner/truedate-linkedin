@@ -214,3 +214,8 @@ window.addEventListener("message", (event: MessageEvent) => {
     updateBannerFromCache();
   }
 });
+
+window.postMessage(
+  { source: "truedate-content-ready" },
+  window.location.origin,
+);

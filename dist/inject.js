@@ -5,9 +5,12 @@
 
   // src/inject.ts
   var VOYAGER_JOB_REGEX = /\/voyager\/api\/.*jobPostings/i;
-  console.log("[TrueDate:inject] Interceptor script loaded and initialized in MAIN world.");
+  var injectCache = /* @__PURE__ */ new Map();
+  console.log(
+    "[TrueDate:inject] Interceptor script loaded and initialized in MAIN world."
+  );
   function findOriginalListedAt(obj, depth = 0) {
-    if (!obj || typeof obj !== "object" || depth > 10) return null;
+    if (!obj || typeof obj !== "object" || depth > 30) return null;
     if (typeof obj.originalListedAt === "number") {
       return {
         originalListedAt: obj.originalListedAt,
@@ -33,7 +36,7 @@
       return pathMatch[1];
     }
     const findUrn = (obj, depth = 0) => {
-      if (!obj || typeof obj !== "object" || depth > 10) return void 0;
+      if (!obj || typeof obj !== "object" || depth > 15) return void 0;
       for (const key of ["entityUrn", "jobPostingUrn", "urn", "$id"]) {
         if (typeof obj[key] === "string") {
           const m = obj[key].match(/(?:fsd_jobPosting|jobPosting):(\d+)/i);
@@ -49,13 +52,25 @@
       }
       return void 0;
     };
-    return findUrn(json);
+    const structural = findUrn(json);
+    if (structural) return structural;
+    try {
+      const text = JSON.stringify(json);
+      const textMatch = text.match(/fsd_jobPosting:(\d+)/);
+      if (textMatch && textMatch[1]) return textMatch[1];
+    } catch {
+    }
+    return void 0;
   }
   function processJsonResponse(url, json) {
     if (!json || typeof json !== "object") return;
     const found = findOriginalListedAt(json);
     if (!found || typeof found.originalListedAt !== "number") {
-      console.warn("[TrueDate:inject] Voyager response missing originalListedAt:", url, json);
+      console.warn(
+        "[TrueDate:inject] Voyager response missing originalListedAt:",
+        url,
+        json
+      );
       return;
     }
     const jobId = extractJobId(url, json);
@@ -74,6 +89,7 @@
       source: MESSAGE_SOURCE,
       payload
     };
+    if (jobId) injectCache.set(jobId, message);
     console.log("[TrueDate:inject] Posting parsed job data to window:", payload);
     window.postMessage(message, window.location.origin);
   }
@@ -93,12 +109,18 @@
         url = String(input.url);
       }
       if (VOYAGER_JOB_REGEX.test(url)) {
-        console.log("[TrueDate:inject] Intercepted target Voyager fetch request:", url);
+        console.log(
+          "[TrueDate:inject] Intercepted target Voyager fetch request:",
+          url
+        );
         const clonedResponse = response.clone();
         clonedResponse.json().then((json) => {
           processJsonResponse(url, json);
         }).catch((err) => {
-          console.warn("[TrueDate:inject] Failed to parse Voyager fetch JSON:", err);
+          console.warn(
+            "[TrueDate:inject] Failed to parse Voyager fetch JSON:",
+            err
+          );
         });
       }
     } catch (err) {
@@ -119,7 +141,10 @@
       try {
         const url = this._truedate_url || "";
         if (VOYAGER_JOB_REGEX.test(url)) {
-          console.log("[TrueDate:inject] Intercepted target Voyager XHR request:", url);
+          console.log(
+            "[TrueDate:inject] Intercepted target Voyager XHR request:",
+            url
+          );
           const handleText = (text) => {
             try {
               const json = JSON.parse(text);
@@ -148,5 +173,46 @@
     });
     return originalXhrSend.apply(this, args);
   };
+  function scanEmbeddedHydrationState() {
+    const elements = document.querySelectorAll(
+      'code[id^="bpr-guid"], script[type="application/json"]'
+    );
+    console.log(
+      "[TrueDate:inject] Hydration scan found elements:",
+      elements.length
+    );
+    elements.forEach((el) => {
+      try {
+        const content = el.textContent;
+        if (content && content.includes("originalListedAt")) {
+          console.log(
+            "[TrueDate:inject] Found candidate hydration element, id:",
+            el.id
+          );
+          const json = JSON.parse(content);
+          processJsonResponse("embedded-hydration", json);
+        }
+      } catch (err) {
+        console.warn("[TrueDate:inject] Hydration scan JSON.parse failed:", err);
+      }
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", scanEmbeddedHydrationState);
+  } else {
+    scanEmbeddedHydrationState();
+  }
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.source === "truedate-content-ready") {
+      console.log(
+        "[TrueDate:inject] Replaying cached payloads:",
+        injectCache.size
+      );
+      injectCache.forEach(
+        (msg) => window.postMessage(msg, window.location.origin)
+      );
+    }
+  });
 })();
 //# sourceMappingURL=inject.js.map

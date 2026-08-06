@@ -182,5 +182,9 @@
       updateBannerFromCache();
     }
   });
+  window.postMessage(
+    { source: "truedate-content-ready" },
+    window.location.origin
+  );
 })();
 //# sourceMappingURL=content.js.map
