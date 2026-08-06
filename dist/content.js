@@ -28,7 +28,6 @@
       host = document.createElement("div");
       host.id = SHADOW_HOST_ID;
       document.body.appendChild(host);
-      console.log("[TrueDate:content] Created shadow DOM host element.");
     }
     if (!host.shadowRoot) {
       const shadow = host.attachShadow({ mode: "open" });
@@ -47,7 +46,6 @@
     return host.shadowRoot;
   }
   function renderBanner(data) {
-    console.log("[TrueDate:content] Rendering banner with payload:", data);
     const shadowRoot = getOrCreateShadowRoot();
     const container = shadowRoot.querySelector("#truedate-container");
     if (!container) return;

@@ -146,7 +146,7 @@ window.fetch = async function (
     if (VOYAGER_JOB_REGEX.test(url)) {
       console.log(
         "[TrueDate:inject] Intercepted target Voyager fetch request:",
-        url,
+        // url,
       );
 
       const clonedResponse = response.clone();
@@ -191,7 +191,7 @@ const originalXhrSend = XhrProto.send;
       if (VOYAGER_JOB_REGEX.test(url)) {
         console.log(
           "[TrueDate:inject] Intercepted target Voyager XHR request:",
-          url,
+          // url,
         );
 
         const handleText = (text: string) => {
@@ -234,18 +234,18 @@ function scanEmbeddedHydrationState(): void {
   const elements = document.querySelectorAll(
     'code[id^="bpr-guid"], script[type="application/json"]',
   );
-  console.log(
-    "[TrueDate:inject] Hydration scan found elements:",
-    elements.length,
-  );
+  // console.log(
+  //   "[TrueDate:inject] Hydration scan found elements:",
+  //   elements.length,
+  // );
   elements.forEach((el) => {
     try {
       const content = el.textContent;
       if (content && content.includes("originalListedAt")) {
-        console.log(
-          "[TrueDate:inject] Found candidate hydration element, id:",
-          el.id,
-        );
+        // console.log(
+        //   "[TrueDate:inject] Found candidate hydration element, id:",
+        //   el.id,
+        // );
         const json = JSON.parse(content);
         processJsonResponse("embedded-hydration", json);
       }

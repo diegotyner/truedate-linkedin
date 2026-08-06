@@ -29,7 +29,7 @@ function getOrCreateShadowRoot(): ShadowRoot {
     host = document.createElement("div");
     host.id = SHADOW_HOST_ID;
     document.body.appendChild(host);
-    console.log("[TrueDate:content] Created shadow DOM host element.");
+    // console.log("[TrueDate:content] Created shadow DOM host element.");
   }
 
   if (!host.shadowRoot) {
@@ -54,7 +54,7 @@ function getOrCreateShadowRoot(): ShadowRoot {
 }
 
 function renderBanner(data: ParsedJobData): void {
-  console.log("[TrueDate:content] Rendering banner with payload:", data);
+  // console.log("[TrueDate:content] Rendering banner with payload:", data);
   const shadowRoot = getOrCreateShadowRoot();
   const container = shadowRoot.querySelector("#truedate-container");
   if (!container) return;

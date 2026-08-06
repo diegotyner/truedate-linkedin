@@ -110,8 +110,8 @@
       }
       if (VOYAGER_JOB_REGEX.test(url)) {
         console.log(
-          "[TrueDate:inject] Intercepted target Voyager fetch request:",
-          url
+          "[TrueDate:inject] Intercepted target Voyager fetch request:"
+          // url,
         );
         const clonedResponse = response.clone();
         clonedResponse.json().then((json) => {
@@ -142,8 +142,8 @@
         const url = this._truedate_url || "";
         if (VOYAGER_JOB_REGEX.test(url)) {
           console.log(
-            "[TrueDate:inject] Intercepted target Voyager XHR request:",
-            url
+            "[TrueDate:inject] Intercepted target Voyager XHR request:"
+            // url,
           );
           const handleText = (text) => {
             try {
@@ -177,18 +177,10 @@
     const elements = document.querySelectorAll(
       'code[id^="bpr-guid"], script[type="application/json"]'
     );
-    console.log(
-      "[TrueDate:inject] Hydration scan found elements:",
-      elements.length
-    );
     elements.forEach((el) => {
       try {
         const content = el.textContent;
         if (content && content.includes("originalListedAt")) {
-          console.log(
-            "[TrueDate:inject] Found candidate hydration element, id:",
-            el.id
-          );
           const json = JSON.parse(content);
           processJsonResponse("embedded-hydration", json);
         }
