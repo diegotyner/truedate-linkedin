@@ -1,7 +1,7 @@
 import * as esbuild from "esbuild";
 
 const ctx = await esbuild.context({
-  entryPoints: ["src/inject.ts", "src/content.ts", "src/background.ts"],
+  entryPoints: ["src/inject.ts", "src/content.ts"],
   bundle: true,
   outdir: "dist",
   format: "iife",

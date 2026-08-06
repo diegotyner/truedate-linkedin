@@ -7,11 +7,16 @@ A chrome extension to show original job posting dates. Also, even if you're not 
 1. Copy files in some destination folder. git clone `https://github.com/diegotyner/truedate-linkedin`
 2. In your chromium browser, go to chrome://extensions. Here, select developer mode and then load unpacked, directing to the `./dist/` folder.
 
+### Usage
+
+When searching on `https://www.linkedin.com/jobs/search/*` (the legacy search) you'll get a popup displaying both the original posting date (ignoring Repost date) and the expiry date.
+
+- It will not work on the `linkedin.com/jobs/search-results/*` view, this uses a different scheme I don't feel like reverse engineering when I only use the legacy version (it has recency sorting).
+
 ### API & Interception Behavior
 
 LinkedIn surfaces job posting details via two primary Voyager API endpoints:
 
-- `https://www.linkedin.com/voyager/api/jobs/jobPostings/{jobID}`
 - `https://www.linkedin.com/voyager/api/graphql?variables=(jobPostingUrn:urn%3Ali%3Afsd_jobPosting%3A{jobID})&queryId=voyagerJobsDashJobPostings...`
 
 #### Data Format
@@ -19,7 +24,7 @@ LinkedIn surfaces job posting details via two primary Voyager API endpoints:
 Post dates are returned as Unix millisecond timestamps:
 
 - `originalListedAt`: Milliseconds since Jan 01, 1970 UTC (e.g. `1783546126000` -> `Wed Jul 08 2026 21:28:46 GMT+0000`).
-- `expireAt` _(optional)_: Expiration Unix timestamp in milliseconds.
+- `expireAt`: Expiration Unix timestamp in milliseconds.
 
 ### FYI - Browser Gate
 
