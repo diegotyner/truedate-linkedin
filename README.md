@@ -11,7 +11,7 @@ A chrome extension to show original job posting dates. Also, even if you're not 
 
 When searching on `https://www.linkedin.com/jobs/search/*` (the legacy search) you'll get a popup displaying both the original posting date (ignoring Repost date) and the expiry date.
 
-- It will not work on the `linkedin.com/jobs/search-results/*` view, this uses a different scheme I don't feel like reverse engineering when I only use the legacy version (it has recency sorting).
+- It will not work on the `linkedin.com/jobs/search-results/*` view, this uses a different scheme I don't feel like reverse engineering when I only use the legacy version (I recommend the legacy search, it has recency sorting).
 
 ### API & Interception Behavior
 
